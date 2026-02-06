@@ -1,0 +1,180 @@
+#compdef wt
+
+# Completion function for the wt (git worktree manager) command
+
+_wt() {
+  local context curcontext="$curcontext" state line
+  typeset -A opt_args
+
+  _arguments -C \
+    '1:command:_wt_commands' \
+    '*::arg:->args' \
+    && return 0
+
+  case $state in
+    (args)
+      case $line[1] in
+        (add)
+          _arguments \
+            '1:branch:__wt_comp_branches_for_add' \
+            && return 0
+          ;;
+        (rm)
+          _arguments \
+            '-f[force removal]' \
+            '--force[force removal]' \
+            '1:branch:__wt_comp_worktree_branches' \
+            && return 0
+          ;;
+        (cd)
+          _arguments \
+            '1:branch:__wt_comp_worktree_branches' \
+            && return 0
+          ;;
+        (lock)
+          _arguments \
+            '1:branch:__wt_comp_unlocked_branches' \
+            && return 0
+          ;;
+        (unlock)
+          _arguments \
+            '1:branch:__wt_comp_locked_branches' \
+            && return 0
+          ;;
+        (run)
+          _arguments \
+            '1:branch:__wt_comp_worktree_branches' \
+            '(-)*::command:_normal' \
+            && return 0
+          ;;
+        (ls|base|prune|status|help)
+          return 0
+          ;;
+      esac
+      ;;
+  esac
+}
+
+# List available subcommands
+(( $+functions[_wt_commands] )) ||
+_wt_commands() {
+  local -a commands=(
+    'add:Create a worktree for a branch'
+    'rm:Remove a worktree'
+    'ls:List worktrees with status'
+    'cd:Change to a worktree directory'
+    'base:Change to main repo directory'
+    'prune:Clean up stale worktree references'
+    'status:Show status across all worktrees'
+    'lock:Lock a worktree'
+    'unlock:Unlock a worktree'
+    'run:Run a command in a worktree'
+    'help:Show help'
+  )
+  _describe -t commands 'wt commands' commands "$@"
+}
+
+# Complete branch names of existing worktrees
+(( $+functions[__wt_comp_worktree_branches] )) ||
+__wt_comp_worktree_branches() {
+  local -a branches=()
+  local wt_path="" branch=""
+  while IFS= read -r line; do
+    case "$line" in
+      worktree\ *) wt_path="${line#worktree }" ;;
+      branch\ *) branch="${line#branch refs/heads/}" ;;
+      "")
+        [[ -n "$branch" ]] && branches+=("$branch")
+        wt_path=""; branch=""
+        ;;
+    esac
+  done < <(git worktree list --porcelain 2>/dev/null)
+  # Handle final entry
+  [[ -n "$branch" ]] && branches+=("$branch")
+  _describe -t branches 'worktree branches' branches "$@"
+}
+
+# Complete branches available for wt add (all branches minus already checked-out)
+(( $+functions[__wt_comp_branches_for_add] )) ||
+__wt_comp_branches_for_add() {
+  local -a checked_out=() all_branches=() remote_branches=() available=()
+
+  # Get branches already in worktrees
+  while IFS= read -r line; do
+    case "$line" in
+      branch\ *) checked_out+=("${line#branch refs/heads/}") ;;
+    esac
+  done < <(git worktree list --porcelain 2>/dev/null)
+
+  # Get all local branches
+  all_branches=(${(f)"$(git for-each-ref --format='%(refname:short)' refs/heads/ 2>/dev/null)"})
+
+  # Get remote branches (stripped of remote name prefix)
+  local -a raw_remote=()
+  raw_remote=(${(f)"$(git for-each-ref --format='%(refname:short)' refs/remotes/ 2>/dev/null)"})
+  for rb in "${raw_remote[@]}"; do
+    local stripped="${rb#*/}"
+    [[ "$stripped" = "HEAD" ]] && continue
+    remote_branches+=("$stripped")
+  done
+
+  # Combine and deduplicate, removing already checked-out branches
+  available=(${(u)${all_branches:|checked_out} ${remote_branches:|checked_out}})
+  _describe -t branches 'branches' available "$@"
+}
+
+# Complete unlocked worktree branches (for lock command)
+(( $+functions[__wt_comp_unlocked_branches] )) ||
+__wt_comp_unlocked_branches() {
+  local -a branches=()
+  local wt_path="" branch="" is_locked=0
+  while IFS= read -r line; do
+    case "$line" in
+      worktree\ *) wt_path="${line#worktree }" ;;
+      branch\ *) branch="${line#branch refs/heads/}" ;;
+      locked*) is_locked=1 ;;
+      "")
+        if [[ -n "$branch" ]] && (( ! is_locked )); then
+          branches+=("$branch")
+        fi
+        wt_path=""; branch=""; is_locked=0
+        ;;
+    esac
+  done < <(git worktree list --porcelain 2>/dev/null)
+  # Handle final entry
+  if [[ -n "$branch" ]] && (( ! is_locked )); then
+    branches+=("$branch")
+  fi
+  _describe -t branches 'unlocked worktrees' branches "$@"
+}
+
+# Complete locked worktree branches (for unlock command)
+(( $+functions[__wt_comp_locked_branches] )) ||
+__wt_comp_locked_branches() {
+  local -a branches=()
+  local wt_path="" branch="" is_locked=0
+  while IFS= read -r line; do
+    case "$line" in
+      worktree\ *) wt_path="${line#worktree }" ;;
+      branch\ *) branch="${line#branch refs/heads/}" ;;
+      locked*) is_locked=1 ;;
+      "")
+        if [[ -n "$branch" ]] && (( is_locked )); then
+          branches+=("$branch")
+        fi
+        wt_path=""; branch=""; is_locked=0
+        ;;
+    esac
+  done < <(git worktree list --porcelain 2>/dev/null)
+  # Handle final entry
+  if [[ -n "$branch" ]] && (( is_locked )); then
+    branches+=("$branch")
+  fi
+  _describe -t branches 'locked worktrees' branches "$@"
+}
+
+if [[ "$funcstack[1]" = "_wt" ]]; then
+  _wt "$@"
+else
+  compdef _wt wt
+fi
