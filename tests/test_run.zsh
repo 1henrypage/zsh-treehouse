@@ -73,6 +73,8 @@ test_run_does_not_change_calling_shell_pwd() {
   local orig_pwd="$PWD"
   __fixture_create_branch "run-no-cd"
   wt add run-no-cd &>/dev/null
+  # wt add auto-checkouts, so return to original location
+  cd "$orig_pwd"
   wt run run-no-cd pwd &>/dev/null
   assert_eq "$PWD" "$orig_pwd" "does not change calling shell PWD"
 }

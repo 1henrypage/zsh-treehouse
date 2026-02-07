@@ -95,13 +95,13 @@ test_routes_ls_command() {
 
 it "routes 'ls' command" test_routes_ls_command
 
-test_routes_cd_command() {
+test_routes_checkout_command() {
   cd "$TEST_REPO"
-  __capture wt cd
-  assert_contains "$__STDERR" "usage: wt cd" "routes to cd command"
+  __capture wt checkout
+  assert_contains "$__STDERR" "usage: wt checkout" "routes to checkout command"
 }
 
-it "routes 'cd' command" test_routes_cd_command
+it "routes 'checkout' command" test_routes_checkout_command
 
 test_routes_base_command() {
   cd "$TEST_REPO"

@@ -1,10 +1,10 @@
 #!/usr/bin/env zsh
 
-# Tests for wt cd and wt base
-# Note: These tests call wt cd/base directly (not via __capture)
+# Tests for wt checkout and wt base
+# Note: These tests call wt checkout/base directly (not via __capture)
 # since cd must affect the real shell's PWD
 
-describe "wt cd and wt base"
+describe "wt checkout and wt base"
 
 setup() {
   __fixture_unload_plugin
@@ -16,47 +16,48 @@ teardown() {
   __fixture_teardown
 }
 
-# ── wt cd ─────────────────────────────────────────────────────────────
+# ── wt checkout ──────────────────────────────────────────────────────
 
-test_cd_no_args_shows_error() {
+test_checkout_no_args_shows_error() {
   cd "$TEST_REPO"
-  __capture wt cd
+  __capture wt checkout
   assert_exit_code 1 "returns 1"
-  assert_contains "$__STDERR" "usage: wt cd <branch>" "shows usage"
+  assert_contains "$__STDERR" "usage: wt checkout <branch>" "shows usage"
 }
 
-it "cd: shows error with no arguments" test_cd_no_args_shows_error
+it "checkout: shows error with no arguments" test_checkout_no_args_shows_error
 
-test_cd_nonexistent_branch_shows_error() {
+test_checkout_nonexistent_branch_shows_error() {
   cd "$TEST_REPO"
-  __capture wt cd nonexistent
+  __capture wt checkout nonexistent
   assert_exit_code 1 "returns 1"
   assert_contains "$__STDERR" "no worktree found for branch 'nonexistent'" "shows error"
 }
 
-it "cd: shows error for nonexistent branch" test_cd_nonexistent_branch_shows_error
+it "checkout: shows error for nonexistent branch" test_checkout_nonexistent_branch_shows_error
 
-test_cd_changes_directory() {
+test_checkout_changes_directory() {
   cd "$TEST_REPO"
-  __fixture_create_branch "test-cd"
-  wt add test-cd &>/dev/null
-  wt cd test-cd &>/dev/null
-  local expected="$WT_DIR/origin/test-cd"
+  __fixture_create_branch "test-checkout"
+  # Use base wt add without auto-checkout to test checkout separately
+  git worktree add "$WT_DIR/origin/test-checkout" test-checkout &>/dev/null
+  wt checkout test-checkout &>/dev/null
+  local expected="$WT_DIR/origin/test-checkout"
   assert_eq "$PWD" "$expected" "changes to worktree directory"
 }
 
-it "cd: changes to worktree directory" test_cd_changes_directory
+it "checkout: changes to worktree directory" test_checkout_changes_directory
 
-test_cd_works_with_slash_branch() {
+test_checkout_works_with_slash_branch() {
   cd "$TEST_REPO"
-  __fixture_create_branch "feature/cd-slash"
-  wt add feature/cd-slash &>/dev/null
-  wt cd feature/cd-slash &>/dev/null
-  local expected="$WT_DIR/origin/feature--cd-slash"
+  __fixture_create_branch "feature/checkout-slash"
+  git worktree add "$WT_DIR/origin/feature--checkout-slash" feature/checkout-slash &>/dev/null
+  wt checkout feature/checkout-slash &>/dev/null
+  local expected="$WT_DIR/origin/feature--checkout-slash"
   assert_eq "$PWD" "$expected" "changes to slash branch worktree"
 }
 
-it "cd: works with slash branch" test_cd_works_with_slash_branch
+it "checkout: works with slash branch" test_checkout_works_with_slash_branch
 
 # ── wt base ───────────────────────────────────────────────────────────
 
@@ -64,7 +65,7 @@ test_base_changes_to_main_root() {
   cd "$TEST_REPO"
   __fixture_create_branch "test-base"
   wt add test-base &>/dev/null
-  wt cd test-base &>/dev/null
+  # wt add now auto-checkouts, so we're already in the worktree
   wt base &>/dev/null
   assert_eq "$PWD" "$TEST_REPO" "returns to main repo"
 }
@@ -75,8 +76,7 @@ test_base_works_from_linked_worktree() {
   cd "$TEST_REPO"
   __fixture_create_branch "test-base-linked"
   wt add test-base-linked &>/dev/null
-  local wt_path="$WT_DIR/origin/test-base-linked"
-  cd "$wt_path"
+  # wt add already changed to the worktree
   wt base &>/dev/null
   assert_eq "$PWD" "$TEST_REPO" "returns to main repo from linked worktree"
 }
@@ -94,14 +94,17 @@ it "base: shows error outside repository" test_base_outside_repo_shows_error
 
 # ── Round-trip ────────────────────────────────────────────────────────
 
-test_cd_then_base_returns_to_main() {
+test_checkout_then_base_returns_to_main() {
   cd "$TEST_REPO"
   local orig_pwd="$PWD"
-  __fixture_create_branch "roundtrip"
-  wt add roundtrip &>/dev/null
-  wt cd roundtrip &>/dev/null
+  __fixture_create_branch "roundtrip-1"
+  __fixture_create_branch "roundtrip-2"
+  git worktree add "$WT_DIR/origin/roundtrip-1" roundtrip-1 &>/dev/null
+  git worktree add "$WT_DIR/origin/roundtrip-2" roundtrip-2 &>/dev/null
+  wt checkout roundtrip-1 &>/dev/null
+  wt checkout roundtrip-2 &>/dev/null
   wt base &>/dev/null
-  assert_eq "$PWD" "$orig_pwd" "round-trip cd+base returns to original"
+  assert_eq "$PWD" "$orig_pwd" "round-trip checkout+base returns to original"
 }
 
-it "round-trip: cd then base returns to main" test_cd_then_base_returns_to_main
+it "round-trip: checkout then base returns to main" test_checkout_then_base_returns_to_main
