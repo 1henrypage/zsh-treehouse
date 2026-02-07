@@ -178,3 +178,41 @@ test_is_dirty_returns_true_for_dirty() {
 }
 
 it "returns true for dirty worktree" test_is_dirty_returns_true_for_dirty
+
+# ── __wt_default_branch ───────────────────────────────────────────────
+
+test_default_branch_returns_main() {
+  cd "$TEST_REPO"
+  local branch=$(__wt_default_branch)
+  assert_eq "$branch" "main" "returns 'main' when it exists"
+}
+
+it "returns main when it exists" test_default_branch_returns_main
+
+test_default_branch_returns_master_when_no_main() {
+  cd "$TEST_REPO"
+  # Rename main to master
+  git branch -m main master &>/dev/null
+  local branch=$(__wt_default_branch)
+  assert_eq "$branch" "master" "returns 'master' when main doesn't exist"
+  # Rename back
+  git branch -m master main &>/dev/null
+}
+
+it "returns master when main doesn't exist" test_default_branch_returns_master_when_no_main
+
+test_default_branch_fallback_to_head() {
+  cd "$TEST_REPO"
+  # Create and checkout a different branch
+  git checkout -b custom-default &>/dev/null
+  # Delete main
+  git branch -D main &>/dev/null
+  local branch=$(__wt_default_branch)
+  assert_eq "$branch" "custom-default" "falls back to HEAD branch"
+  # Restore main
+  git branch main origin/main &>/dev/null
+  git checkout main &>/dev/null
+  git branch -D custom-default &>/dev/null
+}
+
+it "falls back to HEAD branch when neither main nor master exists" test_default_branch_fallback_to_head

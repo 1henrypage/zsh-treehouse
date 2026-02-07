@@ -51,12 +51,21 @@ wt run test-branch git log -3    # Runs command without cd
 wt lock test-branch              # Locks
 wt unlock test-branch            # Unlocks
 wt rm test-branch                # Removes (prompts for branch deletion)
+
+# Agent workflow commands
+wt add agent-task                # Create worktree for agent work
+wt run agent-task 'echo "work" > file.txt && git add -A && git commit -m "agent work"'
+wt diff agent-task               # Show what changed vs main
+wt integrate agent-task          # Rebase and merge into main
+wt reset agent-task              # Reset worktree back to main
 ```
 
 Error cases to verify:
 - `wt ls` outside a git repo — should print "not inside a git repository"
 - `wt cd nonexistent` — should print "no worktree found"
 - `wt add` with no args — should print usage
+- `wt integrate` with uncommitted changes — should refuse
+- `wt reset` with dirty worktree — should refuse unless `-f` flag used
 
 ## Configuration
 

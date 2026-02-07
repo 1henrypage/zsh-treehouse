@@ -71,6 +71,18 @@ __fixture_make_dirty() {
   print "uncommitted" > "$wt_path/dirty.txt"
 }
 
+# Create a commit in a worktree
+__fixture_commit_in_worktree() {
+  local branch="$1"
+  local filename="$2"
+  local message="$3"
+  local wt_path="$(__wt_branch_to_path "$branch")"
+
+  print "content-$filename" > "$wt_path/$filename"
+  git -C "$wt_path" add "$filename"
+  git -C "$wt_path" commit -m "$message" &>/dev/null
+}
+
 # ── Fixture Teardown ──────────────────────────────────────────────────
 
 __fixture_teardown() {

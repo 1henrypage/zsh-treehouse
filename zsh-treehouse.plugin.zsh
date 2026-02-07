@@ -119,6 +119,24 @@ __wt_is_dirty() {
   [[ -n "$(git -C "$wt_path" status --porcelain 2>/dev/null)" ]]
 }
 
+# Detect the repository's default branch
+# Checks for main, then master, then falls back to the main worktree's HEAD
+__wt_default_branch() {
+  # Check if 'main' exists
+  if git show-ref --verify --quiet refs/heads/main 2>/dev/null; then
+    print "main"
+    return
+  fi
+  # Check if 'master' exists
+  if git show-ref --verify --quiet refs/heads/master 2>/dev/null; then
+    print "master"
+    return
+  fi
+  # Fallback: get the branch checked out in the main worktree
+  local main_root="$(__wt_main_root)"
+  git -C "$main_root" symbolic-ref --short HEAD 2>/dev/null
+}
+
 # ── Subcommands ───────────────────────────────────────────────────────
 
 __wt_cmd_add() {
@@ -352,6 +370,116 @@ __wt_cmd_run() {
   (cd "$wt_path" && eval "$@")
 }
 
+__wt_cmd_reset() {
+  local force=0
+  local branch=""
+  local ref=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -f|--force) force=1; shift ;;
+      *)
+        if [[ -z "$branch" ]]; then
+          branch="$1"
+        else
+          ref="$1"
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  [[ -z "$branch" ]] && { __wt_err "usage: wt reset [-f|--force] <branch> [<ref>]"; return 1; }
+  __wt_ensure_git_repo || return 1
+
+  local wt_path
+  wt_path="$(__wt_resolve_worktree_path "$branch")"
+  [[ -z "$wt_path" ]] && { __wt_err "no worktree found for branch '$branch'"; return 1; }
+
+  # Check if worktree is dirty
+  if (( ! force )) && __wt_is_dirty "$wt_path"; then
+    __wt_err "worktree has uncommitted changes (use -f to force)"
+    return 1
+  fi
+
+  # Default to the default branch if no ref specified
+  if [[ -z "$ref" ]]; then
+    ref="$(__wt_default_branch)"
+  fi
+
+  # Hard reset and clean
+  git -C "$wt_path" reset --hard "$ref" &>/dev/null || {
+    __wt_err "failed to reset to '$ref'"
+    return 1
+  }
+  git -C "$wt_path" clean -fd &>/dev/null
+
+  __wt_success "reset '$branch' to '$ref'"
+}
+
+__wt_cmd_integrate() {
+  local branch="$1"
+  [[ -z "$branch" ]] && { __wt_err "usage: wt integrate <branch>"; return 1; }
+  __wt_ensure_git_repo || return 1
+
+  local wt_path
+  wt_path="$(__wt_resolve_worktree_path "$branch")"
+  [[ -z "$wt_path" ]] && { __wt_err "no worktree found for branch '$branch'"; return 1; }
+
+  # Check if worktree is clean
+  if __wt_is_dirty "$wt_path"; then
+    __wt_err "worktree has uncommitted changes"
+    return 1
+  fi
+
+  # Get main worktree root and default branch
+  local main_root="$(__wt_main_root)"
+  local default_branch="$(__wt_default_branch)"
+
+  # Check if main worktree is clean
+  if __wt_is_dirty "$main_root"; then
+    __wt_err "main worktree has uncommitted changes"
+    return 1
+  fi
+
+  # Check if main worktree is on the default branch
+  local current_branch
+  current_branch="$(git -C "$main_root" symbolic-ref --short HEAD 2>/dev/null)"
+  if [[ "$current_branch" != "$default_branch" ]]; then
+    __wt_err "main worktree must be on '$default_branch' (currently on '$current_branch')"
+    return 1
+  fi
+
+  # Rebase worktree branch onto default branch
+  if ! git -C "$wt_path" rebase "$default_branch" &>/dev/null; then
+    __wt_err "rebase failed — resolve conflicts in:"
+    print -P "  ${__WT_CYAN}$wt_path${__WT_RESET}"
+    print "Then run: git -C \"$wt_path\" rebase --continue"
+    return 1
+  fi
+
+  # Fast-forward merge into main
+  if ! git -C "$main_root" merge --ff-only "$branch" &>/dev/null; then
+    __wt_err "fast-forward merge failed (non-linear history?)"
+    return 1
+  fi
+
+  __wt_success "integrated '$branch' into '$default_branch'"
+}
+
+__wt_cmd_diff() {
+  local branch="$1"
+  [[ -z "$branch" ]] && { __wt_err "usage: wt diff <branch>"; return 1; }
+  __wt_ensure_git_repo || return 1
+
+  local wt_path
+  wt_path="$(__wt_resolve_worktree_path "$branch")"
+  [[ -z "$wt_path" ]] && { __wt_err "no worktree found for branch '$branch'"; return 1; }
+
+  local default_branch="$(__wt_default_branch)"
+  git -C "$wt_path" diff "${default_branch}...${branch}"
+}
+
 __wt_cmd_help() {
   print -P "${__WT_BOLD}wt${__WT_RESET} - git worktree manager\n"
   print    "Usage: wt <command> [args]\n"
@@ -366,6 +494,10 @@ __wt_cmd_help() {
   print    "  lock <branch>         Lock a worktree"
   print    "  unlock <branch>       Unlock a worktree"
   print    "  run <branch> <cmd>    Run a command in a worktree"
+  print    "  reset [-f] <branch> [<ref>]"
+  print    "                        Hard-reset a worktree to a ref (default: default branch)"
+  print    "  integrate <branch>    Rebase onto default branch and fast-forward merge"
+  print    "  diff <branch>         Show diff of branch changes vs default branch"
   print    "  help                  Show this help"
   print    ""
   print    "Config:"
@@ -390,6 +522,9 @@ wt() {
     lock)   __wt_cmd_lock "$@" ;;
     unlock) __wt_cmd_unlock "$@" ;;
     run)    __wt_cmd_run "$@" ;;
+    reset)  __wt_cmd_reset "$@" ;;
+    integrate) __wt_cmd_integrate "$@" ;;
+    diff)   __wt_cmd_diff "$@" ;;
     help|-h|--help) __wt_cmd_help ;;
     *)      __wt_err "unknown command: $subcmd"; __wt_cmd_help; return 1 ;;
   esac
