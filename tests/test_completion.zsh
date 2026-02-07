@@ -221,7 +221,13 @@ test_comp_unlocked_branches_excludes_locked() {
   fi
 
   assert_contains "${branches[*]}" "unlocked" "includes unlocked"
-  assert_not_contains "${branches[*]}" "locked" "excludes locked"
+
+  # Check that "locked" is not in the array (must check elements, not substring)
+  local found_locked=0
+  for b in "${branches[@]}"; do
+    [[ "$b" = "locked" ]] && found_locked=1
+  done
+  assert_eq "$found_locked" "0" "excludes locked"
 }
 
 it "excludes locked branches from unlock completion" test_comp_unlocked_branches_excludes_locked
@@ -260,7 +266,13 @@ test_comp_locked_branches_only_locked() {
   fi
 
   assert_contains "${branches[*]}" "locked" "includes locked"
-  assert_not_contains "${branches[*]}" "unlocked" "excludes unlocked"
+
+  # Check that "unlocked" is not in the array (must check elements, not substring)
+  local found_unlocked=0
+  for b in "${branches[@]}"; do
+    [[ "$b" = "unlocked" ]] && found_unlocked=1
+  done
+  assert_eq "$found_unlocked" "0" "excludes unlocked"
 }
 
 it "only includes locked branches in lock completion" test_comp_locked_branches_only_locked
