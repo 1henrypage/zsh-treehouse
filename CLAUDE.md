@@ -26,7 +26,8 @@ LICENSE                    # MIT
 
 ## Key Gotchas
 
-- `wt cd` and `wt base` work because `wt` is a **sourced function**, not a script — `cd` changes the real shell directory
+- `wt checkout`, `wt add`, and `wt base` work because `wt` is a **sourced function**, not a script — `cd` changes the real shell directory
+- `wt add` automatically checks out to the newly created worktree
 - `wt run` uses a **subshell** `(cd ... && eval ...)` deliberately to NOT change the directory
 - Branch slashes become `--` in directory names: `feature/login` -> `feature--login`
 - The plugin never needs to reverse-map directory names to branches — it uses `git worktree list --porcelain` which has real branch names
@@ -41,10 +42,10 @@ Source the plugin in any git repo and run through the commands:
 source ./zsh-treehouse.plugin.zsh
 
 wt help                          # Should print usage
-wt add test-branch               # Creates worktree at ~/.treehouse/<repo>/test-branch
-wt add feature/slash-test        # Creates at ~/.treehouse/<repo>/feature--slash-test
+wt add test-branch               # Creates worktree and checks out to it at ~/.treehouse/<repo>/test-branch
+wt add feature/slash-test        # Creates and checks out to ~/.treehouse/<repo>/feature--slash-test
 wt ls                            # Shows both worktrees
-wt cd test-branch                # Changes directory
+wt checkout test-branch          # Changes directory to worktree
 wt base                          # Returns to main repo
 wt status                        # Shows git status for all worktrees
 wt run test-branch git log -3    # Runs command without cd
@@ -53,7 +54,7 @@ wt unlock test-branch            # Unlocks
 wt rm test-branch                # Removes (prompts for branch deletion)
 
 # Agent workflow commands
-wt add agent-task                # Create worktree for agent work
+wt add agent-task                # Create worktree and check out to it
 wt run agent-task 'echo "work" > file.txt && git add -A && git commit -m "agent work"'
 wt diff agent-task               # Show what changed vs main
 wt integrate agent-task          # Rebase and merge into main
@@ -62,7 +63,7 @@ wt reset agent-task              # Reset worktree back to main
 
 Error cases to verify:
 - `wt ls` outside a git repo — should print "not inside a git repository"
-- `wt cd nonexistent` — should print "no worktree found"
+- `wt checkout nonexistent` — should print "no worktree found"
 - `wt add` with no args — should print usage
 - `wt integrate` with uncommitted changes — should refuse
 - `wt reset` with dirty worktree — should refuse unless `-f` flag used

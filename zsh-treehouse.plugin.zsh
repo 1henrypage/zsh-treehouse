@@ -171,6 +171,7 @@ __wt_cmd_add() {
   local rc=$?
   if (( rc == 0 )); then
     __wt_success "created worktree for '$branch' at $target"
+    cd "$target" || return 1
   fi
   return $rc
 }
@@ -263,9 +264,9 @@ __wt_cmd_ls() {
   fi
 }
 
-__wt_cmd_cd() {
+__wt_cmd_checkout() {
   local branch="$1"
-  [[ -z "$branch" ]] && { __wt_err "usage: wt cd <branch>"; return 1; }
+  [[ -z "$branch" ]] && { __wt_err "usage: wt checkout <branch>"; return 1; }
   __wt_ensure_git_repo || return 1
 
   local wt_path
@@ -484,10 +485,10 @@ __wt_cmd_help() {
   print -P "${__WT_BOLD}wt${__WT_RESET} - git worktree manager\n"
   print    "Usage: wt <command> [args]\n"
   print    "Commands:"
-  print    "  add <branch>          Create a worktree for a branch"
+  print    "  add <branch>          Create and checkout a worktree for a branch"
   print    "  rm [-f] <branch>      Remove a worktree (optionally delete branch)"
   print    "  ls                    List worktrees with status"
-  print    "  cd <branch>           Change to a worktree directory"
+  print    "  checkout <branch>     Change to a worktree directory"
   print    "  base                  Change to the main repo directory"
   print    "  prune                 Clean up stale worktree references"
   print    "  status                Show git status across all worktrees"
@@ -512,20 +513,20 @@ wt() {
   shift
 
   case "$subcmd" in
-    add)    __wt_cmd_add "$@" ;;
-    rm)     __wt_cmd_rm "$@" ;;
-    ls)     __wt_cmd_ls "$@" ;;
-    cd)     __wt_cmd_cd "$@" ;;
-    base)   __wt_cmd_base "$@" ;;
-    prune)  __wt_cmd_prune "$@" ;;
-    status) __wt_cmd_status "$@" ;;
-    lock)   __wt_cmd_lock "$@" ;;
-    unlock) __wt_cmd_unlock "$@" ;;
-    run)    __wt_cmd_run "$@" ;;
-    reset)  __wt_cmd_reset "$@" ;;
+    add)       __wt_cmd_add "$@" ;;
+    rm)        __wt_cmd_rm "$@" ;;
+    ls)        __wt_cmd_ls "$@" ;;
+    checkout)  __wt_cmd_checkout "$@" ;;
+    base)      __wt_cmd_base "$@" ;;
+    prune)     __wt_cmd_prune "$@" ;;
+    status)    __wt_cmd_status "$@" ;;
+    lock)      __wt_cmd_lock "$@" ;;
+    unlock)    __wt_cmd_unlock "$@" ;;
+    run)       __wt_cmd_run "$@" ;;
+    reset)     __wt_cmd_reset "$@" ;;
     integrate) __wt_cmd_integrate "$@" ;;
-    diff)   __wt_cmd_diff "$@" ;;
+    diff)      __wt_cmd_diff "$@" ;;
     help|-h|--help) __wt_cmd_help ;;
-    *)      __wt_err "unknown command: $subcmd"; __wt_cmd_help; return 1 ;;
+    *)         __wt_err "unknown command: $subcmd"; __wt_cmd_help; return 1 ;;
   esac
 }

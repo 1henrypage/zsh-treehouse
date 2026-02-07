@@ -52,10 +52,10 @@ Branch names with slashes are flattened using `--` as a separator:
 
 | Command | Description |
 |---|---|
-| `wt add <branch>` | Create a worktree for a branch |
+| `wt add <branch>` | Create and checkout a worktree for a branch |
 | `wt rm [-f] <branch>` | Remove a worktree (prompts to delete branch) |
 | `wt ls` | List all worktrees with status |
-| `wt cd <branch>` | Change directory to a worktree |
+| `wt checkout <branch>` | Change directory to a worktree |
 | `wt base` | Change directory back to the main repo |
 | `wt prune` | Clean up stale worktree references |
 | `wt status` | Show git status across all worktrees |
@@ -82,14 +82,14 @@ Branch names with slashes are flattened using `--` as a separator:
 ### Basic Usage
 
 ```zsh
-# Create a worktree for a hotfix
+# Create a worktree for a hotfix (automatically checks out to it)
 wt add hotfix/payment-bug
 
 # List your worktrees
 wt ls
 
-# Jump into the worktree
-wt cd hotfix/payment-bug
+# Jump to another worktree
+wt checkout other-branch
 
 # Go back to main repo
 wt base
@@ -140,7 +140,7 @@ Full zsh completion is included. Press `<TAB>` after any subcommand:
 
 - `wt <TAB>` — shows all subcommands
 - `wt add <TAB>` — shows available branches (excludes already checked-out)
-- `wt cd <TAB>` — shows existing worktree branches
+- `wt checkout <TAB>` — shows existing worktree branches
 - `wt reset <TAB>` — shows worktree branches, then refs
 - `wt integrate <TAB>` — shows worktree branches
 - `wt diff <TAB>` — shows worktree branches

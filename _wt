@@ -26,7 +26,7 @@ _wt() {
             '1:branch:__wt_comp_worktree_branches' \
             && return 0
           ;;
-        (cd)
+        (checkout)
           _arguments \
             '1:branch:__wt_comp_worktree_branches' \
             && return 0
@@ -77,10 +77,10 @@ _wt() {
 (( $+functions[_wt_commands] )) ||
 _wt_commands() {
   local -a commands=(
-    'add:Create a worktree for a branch'
+    'add:Create and checkout a worktree for a branch'
     'rm:Remove a worktree'
     'ls:List worktrees with status'
-    'cd:Change to a worktree directory'
+    'checkout:Change to a worktree directory'
     'base:Change to main repo directory'
     'prune:Clean up stale worktree references'
     'status:Show status across all worktrees'

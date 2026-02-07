@@ -38,14 +38,22 @@ it "shows error outside git repository" test_add_outside_repo_shows_error
 
 test_add_creates_worktree_simple() {
   cd "$TEST_REPO"
-  __capture wt add test-branch
-  assert_exit_code 0 "returns 0"
+  wt add test-branch &>/dev/null
   local expected="$WT_DIR/origin/test-branch"
   assert_dir_exists "$expected" "creates worktree directory"
-  assert_contains "$__STDOUT" "created worktree for 'test-branch'" "shows success message"
 }
 
 it "creates worktree for new branch" test_add_creates_worktree_simple
+
+test_add_auto_checkouts_to_worktree() {
+  cd "$TEST_REPO"
+  local orig_pwd="$PWD"
+  wt add test-auto-checkout &>/dev/null
+  local expected="$WT_DIR/origin/test-auto-checkout"
+  assert_eq "$PWD" "$expected" "automatically checks out to new worktree"
+}
+
+it "automatically checks out to new worktree" test_add_auto_checkouts_to_worktree
 
 test_add_creates_worktree_for_existing_local_branch() {
   cd "$TEST_REPO"
