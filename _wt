@@ -140,7 +140,8 @@ __wt_comp_branches_for_add() {
   done
 
   # Combine and deduplicate, removing already checked-out branches
-  available=(${(u)${all_branches:|checked_out} ${remote_branches:|checked_out}})
+  available=("${(@)all_branches:|checked_out}" "${(@)remote_branches:|checked_out}")
+  available=("${(@u)available}")
   _describe -t branches 'branches' available "$@"
 }
 
