@@ -9,7 +9,7 @@ A zsh plugin that makes git worktrees easy to use. Stop stashing — start using
 ### Antigen
 
 ```zsh
-antigen bundle 1henrypage/zsh-treehouse
+antigen bundle 1henrypage/zsh-treehouse --branch=main
 ```
 
 ### Manual
